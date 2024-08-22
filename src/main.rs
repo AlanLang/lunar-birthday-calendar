@@ -1,6 +1,8 @@
-use axum::{routing::get, Router};
+use axum::{extract::State, routing::get, Router};
 use clap::{Arg, Command};
 use std::env;
+mod calendar;
+mod config;
 
 #[tokio::main]
 async fn main() {
@@ -10,6 +12,36 @@ async fn main() {
   }
   env_logger::init();
 
+  let matches = set_command();
+  let config_file_path = get_config_file_path(&matches);
+  let config = get_config(config_file_path).unwrap();
+
+  let app = Router::new()
+    .route("/", get(create_calendar))
+    .with_state(config);
+  let listener = tokio::net::TcpListener::bind("0.0.0.0:9000").await.unwrap();
+  log::info!("Listening on: {}", listener.local_addr().unwrap());
+  axum::serve(listener, app).await.unwrap();
+}
+
+async fn create_calendar(State(config): State<config::BirthdayConfig>) -> String {
+  // 在这里拿到 main 函数里的 config
+  let calendar_info = calendar::create_calendar(config);
+  return calendar_info.to_string();
+}
+
+fn read_config_file(config_file_path: &str) -> anyhow::Result<String> {
+  let config = std::fs::read_to_string(config_file_path).map_err(|err| {
+    anyhow::anyhow!(
+      "Failed to read config file '{}': {}. You can set config file with -c",
+      config_file_path,
+      err
+    )
+  });
+  config
+}
+
+fn set_command() -> clap::ArgMatches {
   let matches = Command::new("lunar-birthday-calendar")
     .version("1.0")
     .author("alanlang")
@@ -22,32 +54,19 @@ async fn main() {
         .required(false),
     )
     .get_matches();
-  let config_file_path = match matches.get_one::<String>("config") {
-    Some(config_path) => &config_path,
-    None => "birthdays.json",
-  };
-  let config_file = read_config_file(config_file_path);
-  if let Err(err) = config_file {
-    eprintln!("{}", err);
-    std::process::exit(1);
-  }
-
-  // build our application with a single route
-  let app = Router::new().route("/", get(|| async { "Hello, World!" }));
-
-  // run our app with hyper, listening globally on port 3000
-  let listener = tokio::net::TcpListener::bind("0.0.0.0:9000").await.unwrap();
-  log::info!("Listening on: {}", listener.local_addr().unwrap());
-  axum::serve(listener, app).await.unwrap();
+  matches
 }
 
-fn read_config_file(config_file_path: &str) -> anyhow::Result<String> {
-  let config = std::fs::read_to_string(config_file_path).map_err(|err| {
-    anyhow::anyhow!(
-      "Failed to read config file '{}': {}. You can set config file with -c",
-      config_file_path,
-      err
-    )
-  });
-  config
+fn get_config_file_path(matches: &clap::ArgMatches) -> &str {
+  match matches.get_one::<String>("config") {
+    Some(config_path) => config_path,
+    None => "birthdays.json",
+  }
+}
+
+fn get_config(config_file_path: &str) -> anyhow::Result<config::BirthdayConfig> {
+  let config_str = read_config_file(config_file_path)?;
+  let config = config::get_config(config_str)?;
+  log::info!("Config read {:?} birthday items", config.birthdays.len());
+  Ok(config)
 }
