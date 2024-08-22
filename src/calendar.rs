@@ -12,7 +12,7 @@ pub fn create_calendar(config: config::BirthdayConfig) -> Calendar {
       Ok(date) => {
         let event = Event::new()
           .summary(&format!(
-            "{}的农历生日 ({}月{})",
+            "{}的生日 (农历{}月{})",
             birthday.name, birthday.month, birthday.day
           ))
           .all_day(date)
