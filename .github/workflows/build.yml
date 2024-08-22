@@ -32,3 +32,13 @@ jobs:
         source: "target/release/lunar-birthday-calendar"
         target: "/etc/lbc/lbc"
         strip_components: 2
+    - name: Restart service
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.SSH_HOST }}
+        port: ${{ secrets.SSH_PORT }}
+        username: ${{ secrets.SSH_USERNAME }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        script: |
+          systemctl --user restart lbc.service
+          systemctl --user status lbc.service
