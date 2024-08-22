@@ -30,7 +30,7 @@ jobs:
         username: ${{ secrets.SSH_USERNAME }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         source: "target/release/lunar-birthday-calendar"
-        target: "/etc/lbc/lbc"
+        target: "/etc/lbc"
         strip_components: 2
     - name: Restart service
       uses: appleboy/ssh-action@master
@@ -40,5 +40,7 @@ jobs:
         username: ${{ secrets.SSH_USERNAME }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         script: |
+          cd /etc/lbc
+          mv lunar-birthday-calendar lbc
           systemctl --user restart lbc.service
           systemctl --user status lbc.service
